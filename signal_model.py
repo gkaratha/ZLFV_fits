@@ -1,11 +1,13 @@
 # Fit the signal MC and create an interpolation model
 import ROOT as rt
 from array import array
+from math import erf
+import ctypes
 
 #----------------------------------------------------------------------------------------
 # Signal sample structure
 class sample:
-    def __init__(self, file_path, n_gen, year, base_path):
+    def __init__(self, file_path, n_gen, year, base_path, mass = 0.):
         self.file_path_ = file_path
         self.n_gen_ = n_gen
         self.year_ = year
@@ -14,12 +16,16 @@ class sample:
         if base_path[-1] != "/": self.full_path_ += "/"
         self.full_path_ += file_path
 
+        if mass <= 0.: # try to get the mass from the file name
+            mass = float(file_path.split('_sgnM')[1].split('_mcRun')[0])
+        self.mass_ = mass
+
     def __repr__(self):
-        return "Sample:\n file = %s\n n_gen = %i\n year = %i\n base_path = %s\n" % (self.file_path_, self.n_gen_, self.year_, self.base_path_)
+        return "Sample:\n file = %s\n n_gen = %i\n year = %i\n base_path = %s\n mass = %.1f\n" % (self.file_path_, self.n_gen_, self.year_, self.base_path_, self.mass_)
 
 #----------------------------------------------------------------------------------------
 # Retrieve the signal distribution, properly weighing each year's component
-def signal_distribution(sample_map, h, var, cuts, period = "Run2"):
+def signal_distribution(sample_map, h, var, cuts, period = "Run2", correct_samples = True):
     lumis={"2016":36.33,"2017":41.48,"2018":59.83,"Run2":137.6}
     periods = ["2016", "2017", "2018"] if period == "Run2" else [period]
     for p in periods:
@@ -32,6 +38,17 @@ def signal_distribution(sample_map, h, var, cuts, period = "Run2"):
         cc.Draw(var + ">>htmp", cuts)
         cross_section = 1. #Use 1 fb cross section
         scale = lumis[p]/sample_map[p].n_gen_
+        if correct_samples and sample_map[p].year_ == 2018 and p != "2018": # If using a different year to model the distribution, apply a correction factor
+            is_high_score = "xgb<=1" in cuts or "xgb <= 1" in cuts
+            is_low_score  = "xgb<=0.7" in cuts or "xgb <= 0.7" in cuts
+            # linear interpolation between 100 and 500 GeV samples
+            ratio = 1.
+            mass = sample_map[p].mass_
+            if is_high_score and p == "2016": ratio = 0.923 + (0.874 - 0.923)/(500. - 100.)*(mass - 100.)
+            if is_high_score and p == "2017": ratio = 0.928 + (0.940 - 0.928)/(500. - 100.)*(mass - 100.)
+            if is_low_score  and p == "2016": ratio = 0.939 + (0.907 - 0.939)/(500. - 100.)*(mass - 100.)
+            if is_low_score  and p == "2017": ratio = 0.984 + (0.949 - 0.984)/(500. - 100.)*(mass - 100.)
+            scale *= ratio
         htmp.Scale(scale)
         h.Add(htmp)
     if h.Integral() <= 0.:
@@ -44,8 +61,12 @@ def signal_distribution(sample_map, h, var, cuts, period = "Run2"):
 def interpolate(param_fits, mass):
     params = []
     mass = mass/1000.
+    index = 0
     for param_fit in param_fits:
-        params.append(param_fit[0] + param_fit[1]*mass + param_fit[2]*mass*mass)
+        if index == 0: #yield is modeled with a function that includes the turn on
+            params.append(param_fit[0]*(1. + erf(param_fit[1]*mass + param_fit[2])) + param_fit[3]*mass)
+        else: params.append(param_fit[0] + param_fit[1]*mass + param_fit[2]*mass*mass)
+        index += 1
     return params
 
 #----------------------------------------------------------------------------------------
@@ -68,10 +89,9 @@ def create_signal_interpolation(masses, distributions, use_gaus = False, figdir 
          min_mass = h_mean - 0.75*h_width
          max_mass = h_mean + 0.75*h_width
       else:
-
-         min_mass = h_mean - 5.*h_width if h_mean > 100. else 70.
-         max_mass = h_mean + 5.*h_width if h_mean > 100. else 110.
-
+         min_mass = h_mean - 5.*h_width if h_mean > 95. else 70.
+         max_mass = h_mean + 5.*h_width if h_mean > 95. else 110.
+      min_mass = max(min_mass, 70.)
 
       # Create a RooFit setup to perform the fit
       obs = rt.RooRealVar("obs", "obs", h_mean, min_mass, max_mass, "GeV/c^{2}")
@@ -105,9 +125,10 @@ def create_signal_interpolation(masses, distributions, use_gaus = False, figdir 
       c.SaveAs(figdir+h.GetName()+"_fit_log.png")
 
       # Include the efficiency in the yield
-      eff = h.Integral()
-      fit_results.append([eff     , mean.getVal()  , sigma.getVal()  , alpha1.getVal()  , alpha2.getVal()  , enne1.getVal()  , enne2.getVal()  ])
-      fit_errs   .append([0.01*eff, mean.getError(), sigma.getError(), alpha1.getError(), alpha2.getError(), enne1.getError(), enne2.getError()])
+      eff_err = ctypes.c_double(1.)
+      eff = h.IntegralAndError(1, h.GetNbinsX(), eff_err)
+      fit_results.append([eff          , mean.getVal()  , sigma.getVal()  , alpha1.getVal()  , alpha2.getVal()  , enne1.getVal()  , enne2.getVal()  ])
+      fit_errs   .append([eff_err.value, mean.getError(), sigma.getError(), alpha1.getError(), alpha2.getError(), enne1.getError(), enne2.getError()])
 
    # Create the interpolation by fitting the parameters as a function of mass
    if use_gaus:
@@ -147,14 +168,22 @@ def create_signal_interpolation(masses, distributions, use_gaus = False, figdir 
       g.GetXaxis().SetTitleOffset(0.75)
 
       # Divide mass by 1,000 for numerical stability
-      func = rt.TF1("func", "[0] + [1]*(x/1000.) + [2]*pow(x/1000.,2)", 0., 1000.)
-      func.SetParameters(0.5, 0., 0.)
+      if name == "yield": #Use a higher order function for the yield turn on
+          func = rt.TF1("func", "[0]*(1. + erf([1]*x/1000. + [2])) + [3]*x/1000", 0., 1000.)
+          func.SetParameters(0.5, 1., 0., 0.)
+      else:
+          func = rt.TF1("func", "[0] + [1]*(x/1000.) + [2]*pow(x/1000.,2)", 0., 1000.)
+          func.SetParameters(0.5, 0., 0.)
       g.Fit(func, "R")
       func.Draw("same")
       c.SaveAs("%sparam_%i.png" % (figdir, param))
 
       # Store the fit result
-      signal_params.append([func.GetParameter(0), func.GetParameter(1), func.GetParameter(2)])
+      if name == "yield":
+          signal_params.append([func.GetParameter(0), func.GetParameter(1), func.GetParameter(2), func.GetParameter(3)])
+          print signal_params[-1]
+      else:
+          signal_params.append([func.GetParameter(0), func.GetParameter(1), func.GetParameter(2)])
    
 
    # Return the list of interpolation fit results, one fit per parameter

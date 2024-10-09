@@ -1,11 +1,11 @@
 # Apply the Z->e+mu selection and output a sparse TTree
 import os
+import time
 import argparse
 import ROOT as rt
 from array import array
 from signal_model import *
 from math import sqrt,cos,sin,acos
-rt.gInterpreter.Declare('#include "SFBDT_weight_combined.h"')
 rt.gROOT.SetBatch(True)
 
 #----------------------------------------------
@@ -72,9 +72,11 @@ def trigger_matching(pt, eta, phi, flavor, year, tree):
 parser = argparse.ArgumentParser()
 parser.add_argument("-o", dest="name",required=True,type=str,help="output root name")
 parser.add_argument("--input-file", dest="input_file",required=True,type=str,help="Input MC/data file")
+parser.add_argument("--input-directory", dest="input_directory",default="lfvanalysis_rootfiles",type=str,help="Input MC/data file directory")
 parser.add_argument("--tree-name", dest="tree_name",default="Events",type=str,help="Input TTree name")
 parser.add_argument("--year", dest="year",required=True,type=int,help="Data/MC processing year (2016, 2017, or 2018)")
 parser.add_argument("--out-tree-name", dest="out_tree_name",default="mytree",type=str,help="Output TTree name")
+parser.add_argument("--min-mass", dest="min_mass",default=95.,type=float,help="Minimum mass allowed")
 parser.add_argument("--first-entry", dest="first_entry",default=0,type=int,help="First entry to process")
 parser.add_argument("--max-entries", dest="max_entries",default=-1,type=int,help="Maximum entries to process")
 
@@ -99,8 +101,8 @@ if args.year not in [2016, 2017, 2018]:
 
 # default path
 # path="/eos/cms/store/cmst3/user/gkaratha/ZmuE_forBDT_v7_tuples/BDT_outputs_v7/Scan_Zprime/"
-path="/eos/cms/store/group/phys_smp/ZLFV/lfvanalysis_rootfiles/"
-figdir = "./figures/%s/" % (args.name)
+path="/eos/cms/store/group/phys_smp/ZLFV/%s/" % (args.input_directory)
+figdir = "./figures/skims/%s_%i/" % (args.name, args.year)
 outdir = "./trees/"
 os.system("[ ! -d %s ] && mkdir -p %s" % (figdir, figdir))
 os.system("[ ! -d %s ] && mkdir -p %s" % (outdir, outdir))
@@ -116,6 +118,26 @@ first_entry = min(args.first_entry, nentries)
 max_entries = nentries-first_entry if args.max_entries < 0 else min(nentries-first_entry, args.max_entries)
 max_entry = first_entry + max_entries
 
+t_in.SetBranchStatus('GenPart*', 0)
+t_in.SetBranchStatus('Tau*', 0)
+t_in.SetBranchStatus('Photon*', 0)
+t_in.SetBranchStatus('GenMET*', 0)
+t_in.SetBranchStatus('RawMET*', 0)
+t_in.SetBranchStatus('RawPuppiMET*', 0)
+t_in.SetBranchStatus('PV*', 0)
+t_in.SetBranchStatus('Pileup_*', 0)
+t_in.SetBranchStatus('LHE*', 0)
+
+
+#----------------------------------------------
+# Narrow to relevant events with TEventList
+#----------------------------------------------
+
+cuts = 'SelectionFilter_LepM > ' + str(args.min_mass-5.) + ' && (Muon_charge[0] * Electron_charge[0] < 0) && Muon_corrected_pt[0] > 20. && Electron_pt[0] > 20.'
+print 'Apply event list selection', cuts
+t_in.Draw(">>elist", cuts);
+elist = rt.gDirectory.Get("elist");
+
 #----------------------------------------------
 # Create the output data structure
 #----------------------------------------------
@@ -124,40 +146,40 @@ f_out = rt.TFile.Open(outdir + 'skim_' + args.name + '_' + str(args.year) + '.ro
 t_out = rt.TTree(args.out_tree_name, 'Z prime events tree')
 
 
-pt_ll          = add_branch(t_out, 'pt_ll'          )
-eta_ll         = add_branch(t_out, 'eta_ll'         )
-phi_ll         = add_branch(t_out, 'phi_ll'         )
-mass_ll        = add_branch(t_out, 'mass_ll'        )
-pt_l1          = add_branch(t_out, 'pt_l1'          )
-eta_l1         = add_branch(t_out, 'eta_l1'         )
-phi_l1         = add_branch(t_out, 'phi_l1'         )
-mass_l1        = add_branch(t_out, 'mass_l1'        )
-isMuon_l1      = add_branch(t_out, 'isMuon_l1'      )
-pt_l2          = add_branch(t_out, 'pt_l2'          )
-eta_l2         = add_branch(t_out, 'eta_l2'         )
-phi_l2         = add_branch(t_out, 'phi_l2'         )
-mass_l2        = add_branch(t_out, 'mass_l2'        )
-isMuon_l2      = add_branch(t_out, 'isMuon_l2'      )
-pt_ratio       = add_branch(t_out, 'ratio_ptl2_ptl1')
+pt_ll          = add_branch(t_out, 'pt_ll'           )
+eta_ll         = add_branch(t_out, 'eta_ll'          )
+phi_ll         = add_branch(t_out, 'phi_ll'          )
+mass_ll        = add_branch(t_out, 'mass_ll'         )
+pt_l1          = add_branch(t_out, 'pt_l1'           )
+eta_l1         = add_branch(t_out, 'eta_l1'          )
+phi_l1         = add_branch(t_out, 'phi_l1'          )
+mass_l1        = add_branch(t_out, 'mass_l1'         )
+isMuon_l1      = add_branch(t_out, 'isMuon_l1'       )
+pt_l2          = add_branch(t_out, 'pt_l2'           )
+eta_l2         = add_branch(t_out, 'eta_l2'          )
+phi_l2         = add_branch(t_out, 'phi_l2'          )
+mass_l2        = add_branch(t_out, 'mass_l2'         )
+isMuon_l2      = add_branch(t_out, 'isMuon_l2'       )
+pt_ratio       = add_branch(t_out, 'ratio_ptl2_ptl1' )
 
-met            = add_branch(t_out, 'met')
-met_phi        = add_branch(t_out, 'met_phi')
-mt_l1          = add_branch(t_out, 'mt_l1')
-mt_l2          = add_branch(t_out, 'mt_l2')
+met            = add_branch(t_out, 'met'             )
+met_phi        = add_branch(t_out, 'met_phi'         )
+mt_l1          = add_branch(t_out, 'mt_l1'           )
+mt_l2          = add_branch(t_out, 'mt_l2'           )
 met_sig        = add_branch(t_out, 'met_significance')
-pt_j1          = add_branch(t_out, 'pt_j1')
-ht             = add_branch(t_out, 'ht')
-st             = add_branch(t_out, 'st')
-njets          = add_branch(t_out, 'njets')
-ratio_met_ptll = add_branch(t_out, 'ratio_met_ptll')
-ratio_met_ht   = add_branch(t_out, 'ratio_met_ht')
-dphi_met_ll    = add_branch(t_out, 'dphi_met_ll')
+pt_j1          = add_branch(t_out, 'pt_j1'           )
+ht             = add_branch(t_out, 'ht'              )
+st             = add_branch(t_out, 'st'              )
+njets          = add_branch(t_out, 'njets'           )
+ratio_met_ptll = add_branch(t_out, 'ratio_met_ptll'  )
+ratio_met_ht   = add_branch(t_out, 'ratio_met_ht'    )
+dphi_met_ll    = add_branch(t_out, 'dphi_met_ll'     )
 
-Flag_met       = add_branch(t_out, 'Flag_met')
-Flag_muon      = add_branch(t_out, 'Flag_muon')
-Flag_electron  = add_branch(t_out, 'Flag_electron')
+Flag_met       = add_branch(t_out, 'Flag_met'        )
+Flag_muon      = add_branch(t_out, 'Flag_muon'       )
+Flag_electron  = add_branch(t_out, 'Flag_electron'   )
 
-evtnum         = add_branch(t_out, 'evtnum')
+evtnum         = add_branch(t_out, 'evtnum'          )
 
 #----------------------------------------------
 # Useful evaluated objects
@@ -171,11 +193,22 @@ accepted = 0
 tot_wt = 0.
 
 step = 0
+prev_time = time.time()
+start_time = prev_time
 for entry in range(first_entry, max_entry):
-   t_in.GetEntry(entry)
    if step % 10000 == 0:
-      print "Processing event %7i (entry %7i, event %12i)" % (step, entry, t_in.event)
+      curr_time = time.time()
+      print "Processing event %7i (entry %7i): %5.1f%% complete, %5.1f%% accepted, %6.0f Hz" % (step, entry,
+                                                                                                step*100./(max_entry-first_entry),
+                                                                                                accepted*100./(step if step > 0 else 1.),
+                                                                                                (10000./(curr_time-prev_time)) if step > 0 else 0.
+                                                                                                )
+      prev_time = curr_time
    step += 1
+
+   if not elist.Contains(entry): continue
+
+   t_in.GetEntry(entry)
 
    #-----------------------------------------
    # Evaluate input information
@@ -230,9 +263,9 @@ for entry in range(first_entry, max_entry):
    #-----------------------------------------
 
    # Lepton kinematic cuts
-   if mass_ll[0] < 70.: continue
-   if lv1.Pt() < 20. or lv2.Pt() < 20.: continue
-   if abs(lv1.Eta()) >= 2.4 or abs(lv2.Eta()) >= 2.4: continue
+   if mass_ll[0] < args.min_mass: continue
+   if pt_l1[0] < 20. or pt_l2[0] < 20.: continue
+   if abs(eta_l1[0]) >= 2.4 or abs(eta_l2[0]) >= 2.4: continue
    if abs(lv1.DeltaR(lv2)) < 0.3: continue
    if abs(eta_sc) >= 1.444 and abs(eta_sc) <= 1.566: continue
 
@@ -244,7 +277,9 @@ for entry in range(first_entry, max_entry):
 
    # Lepton displacement cuts
    if t_in.Electron_dz[0] >= 0.5 or t_in.Electron_dxy[0] >= 0.2: continue
+   if t_in.Electron_dzErr[0] <= 0. or t_in.Electron_dxyErr[0] <= 0.: continue
    if t_in.Muon_dz[0] >= 0.5 or t_in.Muon_dxy[0] >= 0.2: continue
+   if t_in.Muon_dzErr[0] <= 0. or t_in.Muon_dxyErr[0] <= 0.: continue
    if t_in.Electron_dz[0]/t_in.Electron_dzErr[0] >= 4.7: continue
    if t_in.Muon_dz[0]/t_in.Muon_dzErr[0] >= 4.7: continue
    if t_in.Electron_dxy[0]/t_in.Electron_dxyErr[0] >= 3.0: continue
@@ -264,8 +299,8 @@ for entry in range(first_entry, max_entry):
       elec_trig = t_in.HLT_Ele32_WPTight_Gsf and t_in.Electron_pt[0] > 34.
       muon_trig = t_in.HLT_IsoMu24 and t_in.Muon_pt[0] > 25.
    # Trigger matching
-   muon_trig &= trigger_matching(t_in.Muon_pt[0], t_in.Muon_eta[0], t_in.Muon_phi[0], 13, args.year, t_in)
-   elec_trig &= trigger_matching(t_in.Muon_pt[0], t_in.Muon_eta[0], t_in.Muon_phi[0], 13, args.year, t_in)
+   muon_trig &= trigger_matching(t_in.Muon_corrected_pt[0], t_in.Muon_eta[0]    , t_in.Muon_phi[0]    , 13, args.year, t_in)
+   elec_trig &= trigger_matching(t_in.Electron_pt[0]      , t_in.Electron_eta[0], t_in.Electron_phi[0], 11, args.year, t_in)
    if not elec_trig and not muon_trig: continue
 
    # Event flags:
@@ -300,7 +335,10 @@ for entry in range(first_entry, max_entry):
 # Post-processing steps
 #-----------------------------------------
 
-print "%i events accepted (efficiency = %.3f)" % (accepted, accepted*1./max_entries)
+total_time = time.time() - start_time
+print "%i events accepted (efficiency = %.3f), processing took %.1f %s" % (accepted, accepted*1./max_entries,
+                                                                           total_time/60. if total_time > 120. else total_time,
+                                                                           "min" if total_time > 120. else "s")
 
 t_out.Write()
 f_out.Close()

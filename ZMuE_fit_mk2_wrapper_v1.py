@@ -34,7 +34,7 @@ args, unknown = parser.parse_known_args()
 
 
 if len(unknown)>0: 
-   print "not found:",unknown,"exitting"
+   print "not found:",unknown,"exiting"
    exit()
 
 

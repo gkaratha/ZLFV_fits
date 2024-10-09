@@ -12,8 +12,8 @@ rt.gROOT.SetBatch(True)
 path="/eos/cms/store/group/phys_smp/ZLFV/MC_generation/"
 
 # Signal samples to process
-sgn_masspoints=["100"]
-years = ["2016"]
+sgn_masspoints=["125","150","175"]
+years = ["2018"]
 
 # Signal samples by year and mass
 sgn_masspoint_files = {"2016": {}, "2017": {}, "2018": {}}
@@ -28,6 +28,9 @@ sgn_masspoint_files["2017"]={
 }
 sgn_masspoint_files["2018"]={
     "100" :"ZEMu_NANO_2018_M100_100k4/CRAB_UserFiles/ZLFVAnalysis_NANO_M100_100k4/240830_135648/0000/*.root",
+    "125" :"ZEMu_NANO_M125_2018_100k4/CRAB_UserFiles/ZLFVAnalysis_NANO_M125_2018_100k4/240917_113503/0000/*.root",
+    "150" :"ZEMu_NANO_M150_2018_100k4/CRAB_UserFiles/ZLFVAnalysis_NANO_M150_2018_100k4/240917_113734/0000/*.root",
+    "175" :"ZEMu_NANO_M175_2018_100k4/CRAB_UserFiles/ZLFVAnalysis_NANO_M175_2018_100k4/240917_113816/0000/*.root",
     "200" :"ZEMu_NANO_M200_2018_100k4/CRAB_UserFiles/ZLFVAnalysis_NANO_M200_2018_100k4/240710_144622/0000/*.root",
     "300" :"ZEMu_NANO_2018_M300_100k4/CRAB_UserFiles/ZLFVAnalysis_NANO_M300_100k4/240830_170925/0000/*.root",
     "400" :"ZEMu_NANO_M400_2018_100k4/CRAB_UserFiles/ZLFVAnalysis_NANO_M400_2018_100k4/240710_144531/0000/*.root",

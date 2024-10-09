@@ -37,6 +37,7 @@ def print_datacard(name, sig_file, bkg_file, param_name, mass):
    txt+="BTag       lnN 1.005    -\n"
    txt+="Theory     lnN 1.01     -\n"
    txt+="BDT        lnN 1.02     -\n"
+   txt+="SigModel   lnN 1.08     -\n" #Uncertainty due to the interpolation
 
    txt+="#### scales-----------------------------------------------------------------------------------------------------------\n\n"
    # Scale uncertainties
@@ -48,7 +49,6 @@ def print_datacard(name, sig_file, bkg_file, param_name, mass):
    txt+="pdfindex_%s discrete\n" % (param_name)
 
    # Write the file
-   # with open(carddir + "/datacard_zprime_" + name +"_mass-"+str(mass)+ "_mp" + cnt + ".txt",'w') as fl:
    with open(name,'w') as fl:
      fl.write(txt)
    fl.close()

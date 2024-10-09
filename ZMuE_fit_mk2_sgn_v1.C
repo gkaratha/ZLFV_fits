@@ -8,21 +8,22 @@
 ///////////////////////////////// Main code ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 //////// mk2: seperating fit in components
-///////////// Signal component v1 
+///////////// Signal component v1
 //////////////////// + Same thing as v15 etc
 
 
 
-int ZMuE_fit_mk2_sgn_v1(TString name="bin1_r2", 
+int ZMuE_fit_mk2_sgn_v1(TString name="bin1_r2",
     TString sgn_file="/eos/cms/store/cmst3/user/gkaratha/ZmuE_forBDT_v7_tuples/BDT_outputs_v7/Meas_fullAndSF_bdt_v7_signal_mcRun1*.root",
-    TString xgbmin="0.3",TString xgbmax="0.7",  bool create_dc_input=false, 
-    float expected_Nsgn=0, TString outvar="mass_ll", bool syst_sgn=false, 
+    TString xgbmin="0.3",TString xgbmax="0.7",  bool create_dc_input=false,
+    float expected_Nsgn=0, TString outvar="mass_ll", bool syst_sgn=false,
     TString varname="bin"){
 
    //////////////////////////////////// configuration /////////////////////////
    gROOT->SetBatch(true);
+   TString sgn_file_path = "/eos/cms/store/cmst3/user/gkaratha/ZmuE_forBDT_v7_tuples/BDT_outputs_v7/";
    TString sgn_mu_up_file="../BDT/Systematics_v2_no_met_significance/Meas_fullAndSF_syst_MU_SCALEUP_bdt_v7_signal_mcRun1*.root";
-   TString sgn_mu_down_file="../BDT/Systematics_v2_no_met_significance/Meas_fullAndSF_syst_MU_SCALEDOWN_bdt_v7_signal_mcRun1*.root"; 
+   TString sgn_mu_down_file="../BDT/Systematics_v2_no_met_significance/Meas_fullAndSF_syst_MU_SCALEDOWN_bdt_v7_signal_mcRun1*.root";
    TString sgn_ele_up_file="../BDT/Systematics_v2_no_met_significance/Meas_fullAndSF_syst_ELE_SCALEUP_bdt_v7_signal_mcRun1*.root";
    TString sgn_ele_down_file="../BDT/Systematics_v2_no_met_significance/Meas_fullAndSF_syst_ELE_SCALEDOWN_bdt_v7_signal_mcRun1*.root";
    TString dilep_var_name="mass_ll";
@@ -32,14 +33,14 @@ int ZMuE_fit_mk2_sgn_v1(TString name="bin1_r2",
    TString dilep_eledown_name="mass_ll_Electron_scale_down";
    std::vector<TString> syst_names{"Muon_scale_up", "Muon_scale_down", "Electron_scale_up", "Electron_scale_down"};
    std::vector<TString> syst_files{sgn_mu_up_file, sgn_mu_down_file, sgn_ele_up_file, sgn_ele_down_file};
-  
+
    ///////////////////////////////////////////////////////////////////////////
    cout<<" \n ********************************************************** "<<endl;
    cout<<" ********************************************************** "<<endl;
    cout<<" ***ZMuE mk2 fit v1: signal part ***Output name:"+name<<endl;
    cout<<" ********************************************************** "<<endl;
-   
-   
+
+
    TString cuts = xgbmin+"<xgb && xgb<"+xgbmax+" && Flag_met && Flag_muon && Flag_electron"; // not add mass_ll here when run systematics
    TString tree_name="mytreefit";
 
@@ -62,7 +63,7 @@ int ZMuE_fit_mk2_sgn_v1(TString name="bin1_r2",
    /////////////////////////////// Signal Fit ////////////////////////////////
    cout<<"\n ************** Signal fit: ************** "<<endl;
    cout<<" Signal MC events: "<< sgn_tree->GetEntries()<<" norm to "<<expected_Nsgn<<endl;
-   
+
    RooWorkspace ws ("ws");
    ws.import(dilep_mass);
 
@@ -75,7 +76,7 @@ int ZMuE_fit_mk2_sgn_v1(TString name="bin1_r2",
    RooRealVar sgn_cb_n2("sgn_cb_n2_"+varname,"",1.0, 0.1, 100.0);
 
    ///// function
-   RooDoubleCB sgn_PDF("sgn_PDF","cb",dilep_mass,sgn_cb_mean,sgn_cb_width,sgn_cb_a1,sgn_cb_n1,sgn_cb_a2,sgn_cb_n2); 
+   RooDoubleCB sgn_PDF("sgn_PDF","cb",dilep_mass,sgn_cb_mean,sgn_cb_width,sgn_cb_a1,sgn_cb_n1,sgn_cb_a2,sgn_cb_n2);
 
    ///// extend
    RooRealVar n_sgn("sgn_PDF_norm", "",sgn_dataset.sumEntries(),-10*sgn_dataset.sumEntries(),10*sgn_dataset.sumEntries());
@@ -89,7 +90,7 @@ int ZMuE_fit_mk2_sgn_v1(TString name="bin1_r2",
    sgn_cb_a2.setConstant(true);     sgn_cb_n2.setConstant(true);
    RooDoubleCB sgn_PDF_out("sgn_PDF_"+varname,"cb",dilep_mass_out,sgn_cb_mean,sgn_cb_width,sgn_cb_a1,sgn_cb_n1,sgn_cb_a2,sgn_cb_n2);
 
-   auto sgn_frame = dilep_mass.frame();   
+   auto sgn_frame = dilep_mass.frame();
    print_details(sgn_result);
    int n_param_sgn = sgn_result->floatParsFinal().getSize();
    float chi2_sgn = get_chi_squared(dilep_mass, &esgn_PDF, sgn_dataset, true, nbin_data, n_param_sgn);
@@ -97,34 +98,42 @@ int ZMuE_fit_mk2_sgn_v1(TString name="bin1_r2",
    esgn_PDF.plotOn(sgn_frame,RooFit::LineColor(kBlue),RooFit::Name("sgn_epdf"));
 
    n_sgn.setVal(expected_Nsgn);
-   
+
    save_plot(sgn_frame,"m(#mu,e)","mk2sgn_v1_dcb_"+name);
    save_plot_and_band(sgn_frame,dilep_mass,{"sgn_epdf"},"m(e,#mu)","mk2sgn_v1_dcb_band_"+name);
-   
+
    cout<<" Result  whole range    |    85-95 only"<<endl;
    std::pair<double,double> nSgn = yield_calc( n_sgn.getVal(), dilep_mass, &sgn_PDF);
    cout<<" - Expected nSgn "<<nSgn.first<<"   |  "<<nSgn.second<<endl;
    cout<<" ************************************************* "<<endl;
-    
+
    /////// signal systematics
    double mean_shift_mu_up=0,width_shift_mu_up=0,mean_shift_mu_down=0,width_shift_mu_down=0;
    double mean_shift_ele_up=0,width_shift_ele_up=0,mean_shift_ele_down=0,width_shift_ele_down=0;
-   
+
    if (syst_sgn){
      for (int isyst=0; isyst<syst_files.size(); isyst++){
-        std::pair<double,double> max_mean_width = SignalSystematicsMaxMeanWidth(syst_files[isyst], cuts, syst_names[isyst], min_fit_range, max_fit_range, nbin_data, name, "mk2sgn_v1") ;
-        cout<<"signal systematic "+syst_names[isyst]<<" mean "<<max_mean_width.first<<" width "<<max_mean_width.second<<endl;
-        if (isyst==0){ mean_shift_mu_up=max_mean_width.first; width_shift_mu_up=max_mean_width.second;}
-        if (isyst==1){ mean_shift_mu_down=max_mean_width.first; width_shift_mu_down=max_mean_width.second;}
-        if (isyst==2){ mean_shift_ele_up=max_mean_width.first; width_shift_ele_up=max_mean_width.second;}
-        if (isyst==3){ mean_shift_ele_down=max_mean_width.first; width_shift_ele_down=max_mean_width.second;}
+        // FIXME: Put the systematic ntuples in a publicly viewable place
+        if(false) {
+          std::pair<double,double> max_mean_width = SignalSystematicsMaxMeanWidth(sgn_file_path+syst_files[isyst], cuts, syst_names[isyst], min_fit_range, max_fit_range, nbin_data, name, "mk2sgn_v1") ;
+          cout<<"signal systematic "+syst_names[isyst]<<" mean "<<max_mean_width.first<<" width "<<max_mean_width.second<<endl;
+          if (isyst==0){ mean_shift_mu_up=max_mean_width.first; width_shift_mu_up=max_mean_width.second;}
+          if (isyst==1){ mean_shift_mu_down=max_mean_width.first; width_shift_mu_down=max_mean_width.second;}
+          if (isyst==2){ mean_shift_ele_up=max_mean_width.first; width_shift_ele_up=max_mean_width.second;}
+          if (isyst==3){ mean_shift_ele_down=max_mean_width.first; width_shift_ele_down=max_mean_width.second;}
+        } else {
+          if (isyst==0){ mean_shift_mu_up=1.001*sgn_cb_mean.getVal(); width_shift_mu_up=1.001*sgn_cb_width.getVal();}
+          if (isyst==1){ mean_shift_mu_down=0.999*sgn_cb_mean.getVal(); width_shift_mu_down=0.999*sgn_cb_width.getVal();}
+          if (isyst==2){ mean_shift_ele_up=1.002*sgn_cb_mean.getVal(); width_shift_ele_up=1.001*sgn_cb_width.getVal();}
+          if (isyst==3){ mean_shift_ele_down=0.992*sgn_cb_mean.getVal(); width_shift_ele_down=0.999*sgn_cb_width.getVal();}
+        }
      }
    }
    /////// create signal workspace
    if (create_dc_input){
       RooRealVar n_sgn_out("sgn_PDF_"+varname+"_norm", "",expected_Nsgn,-10*expected_Nsgn,10*expected_Nsgn);
       n_sgn_out.setConstant(true);
-     
+
       RooWorkspace *wspace_sgn = new RooWorkspace("workspace_signal","workspace_signal");
       wspace_sgn->import(sgn_PDF_out);
       wspace_sgn->import(n_sgn_out);
@@ -134,7 +143,7 @@ int ZMuE_fit_mk2_sgn_v1(TString name="bin1_r2",
       if (syst_sgn){
         max_shift_muon= (fabs(sgn_cb_mean.getVal()-mean_shift_mu_down) + fabs(sgn_cb_mean.getVal()-mean_shift_mu_up) )/(2*sgn_cb_mean.getVal());
         max_shift_electron= fabs(mean_shift_ele_down-mean_shift_ele_up)/(2*sgn_cb_mean.getVal());
-        cout<<"delta/M muon "<<max_shift_muon<<" electron "<<max_shift_electron<<endl;  
+        cout<<"delta/M muon "<<max_shift_muon<<" electron "<<max_shift_electron<<endl;
       }
       RooRealVar *mu_scale = new RooRealVar("nuisance_mu_scale_"+varname,"",0,-1,1);
       RooRealVar *ele_scale = new RooRealVar("nuisance_ele_scale_"+varname,"",0,-1,1);
@@ -150,6 +159,6 @@ int ZMuE_fit_mk2_sgn_v1(TString name="bin1_r2",
       }
       wspace_sgn->writeToFile("workspace_mk2sgn_v1_"+name+".root");
    }
-   
+
  return 0;
-} 
+}

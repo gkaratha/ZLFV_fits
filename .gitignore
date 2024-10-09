@@ -1,11 +1,17 @@
 
 *~
 *.png
+*.pdf
 *.log
 *.save
 *.out
 WorkspaceScan*
 figures
 datacards
+templates
+hists
+zemu_*
 *.hist
 *.root
+*.pyc
+*.org

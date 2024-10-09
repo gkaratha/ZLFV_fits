@@ -1,11 +1,11 @@
 import ROOT as rt
 
 
-
 infiles =["template_zemu_embed_v3_bin1.root", "template_zemu_embed_v3_bin2.root", "template_zemu_embed_v3_bin3.root"]
 outfiles =["bin1", "bin2", "bin3"]
-Fzmm=0.95
+Fzmm=1.00
 
+rt.gROOT.SetBatch(True)
 
 
 for idx in range(len(infiles)):

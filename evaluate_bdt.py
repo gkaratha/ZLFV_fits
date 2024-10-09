@@ -18,7 +18,8 @@ def check_rm_files(files=[]):
      if os.path.isfile(fl): os.system("rm "+fl )
  
 def evaluate_bdt(bdt,data_file,bdt_cols,common_cols,selection,modelname):
-  check_rm_files([modelname+".root",modelname+".pkl"])
+  out_file_name = "trees/"+modelname+".root"
+  check_rm_files([out_file_name,modelname+".pkl"])
   if selection !="":
     print "selection applied",selection
     dataSample= root_numpy.root2array(data_file, treename='mytree',branches=bdt_cols,selection=selection)
@@ -31,7 +32,7 @@ def evaluate_bdt(bdt,data_file,bdt_cols,common_cols,selection,modelname):
   decisions=np.array(decisions,dtype=np.float64)
   decisions.dtype=[("xgb",np.float64)]   
   for i in [decisions,commonVars]:
-    root_numpy.array2root(i,modelname+".root","mytreefit")
+    root_numpy.array2root(i,out_file_name,"mytreefit")
   return decisions.shape[0]
 
 

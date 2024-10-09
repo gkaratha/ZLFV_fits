@@ -289,7 +289,7 @@ g_exp_1 = rt.TGraphAsymmErrors(len(masses), masses, r_exps, masses_errs, masses_
 g_exp_2 = rt.TGraphAsymmErrors(len(masses), masses, r_exps, masses_errs, masses_errs, r_exps_lo_2, r_exps_hi_2)
 
 c = rt.TCanvas('c_lim', 'c_lim', 800, 600)
-g_exp_2.SetTitle("95% CL_{S} limit vs. Z' mass; Z' mass (GeV/c^{2}); #sigma(Z')*BR(Z'->e#mu) (fb)")
+g_exp_2.SetTitle("95% CL_{S} limit vs. Z' mass")
 g_exp_2.SetFillColor(rt.kOrange)
 g_exp_2.SetLineColor(rt.kOrange)
 g_exp_1.SetFillColor(rt.kGreen+1)
@@ -300,6 +300,8 @@ g_exp.SetLineStyle(rt.kDashed)
 g_exp.SetLineWidth(2)
 g_exp.SetLineColor(rt.kBlack)
 g_exp.Draw("XL")
+g_exp_2.GetXaxis().SetTitle("Z\' mass (GeV/c^{2})");
+g_exp_2.GetYaxis().SetTitle("#sigma(Z\')*BR(Z\'->e#mu) (fb)");
 
 if draw_obs:
    g_obs = rt.TGraph(len(masses), masses, r_lims)
@@ -311,7 +313,7 @@ if draw_obs:
    g_obs.Draw("PL")
 
 g_exp_2.GetXaxis().SetRangeUser(masses[0], masses[-1])
-g_exp_2.GetYaxis().SetRangeUser(0.8*min_lim, 1.4*max_lim)
+g_exp_2.GetYaxis().SetRangeUser(0.*min_lim, 1.01*max_lim)
 
 leg = rt.TLegend(0.7, 0.7, 0.89, 0.89)
 leg.SetLineWidth(0)
@@ -459,7 +461,7 @@ for pval in pvals:
    sig = rt.RooStats.PValueToSignificance(pval)
    global_pval = min(1., pval + n_ref_u*exp(-(sig**2-ref_u**2)/2.))
    global_pvals.append(global_pval)
-   print "p = %.4f, sig = %.2f, n_ref = %i, p_global = %.4f" % (pval, sig, n_ref_u, global_pvals[-1])
+   # print "p = %.4f, sig = %.2f, n_ref = %i, p_global = %.4f" % (pval, sig, n_ref_u, global_pvals[-1])
 
 g_pval   = rt.TGraph(len(masses), masses, pvals)
 g_global = rt.TGraph(len(masses), masses, global_pvals)

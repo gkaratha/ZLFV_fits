@@ -12,6 +12,10 @@ TTree * get_tree(TString tree_name, TString path, TString cuts="",Long64_t nmax=
     tree->Add(path);
     if (cuts=="")
        cuts="1>0";
+    if(tree->GetEntries() == 0) {
+      cout << __func__ << ": Tree " << tree_name.Data() << " (path = " << path.Data() << ") has no entries\n";
+      return nullptr;
+    }
     TTree * tree_cut = tree->CopyTree(cuts,"",nmax);
     return tree_cut;
 }
@@ -44,6 +48,37 @@ TLatex * CMS_lumi(bool IsData){
 }
 
 
+//-----------------------------------------------------------------------------------------------------------------------------------
+// Count free PDF params
+int count_pdf_params(RooAbsPdf* pdf) {
+  int nfree = 0;
+  auto vars = pdf->getVariables();
+  auto itr = vars->createIterator();
+  auto var = itr->Next();
+  while(var) {
+    if(!((RooAbsReal*) var)->isConstant()) ++nfree;
+    var = itr->Next();
+  }
+  return max(nfree-1,0); //remove the observable from counting
+}
+
+//-----------------------------------------------------------------------------------------------------------------------------------
+// List of PDF parameters, optionally sorted alphabetically
+list<RooRealVar*> list_pdf_params(RooAbsPdf* pdf, RooRealVar& obs, bool sorted = false) {
+  auto vars = pdf->getVariables();
+  auto itr = vars->createIterator();
+  auto var = itr->Next();
+  list<RooRealVar*> results;
+  while(var) {
+    TString name = var->GetName();
+    if(name != obs.GetName()) results.push_back((RooRealVar*) var);
+    var = itr->Next();
+  }
+  if(sorted) {
+    results.sort([](const RooRealVar* a, const RooRealVar* b) { return std::string(a->GetName()) < std::string(b->GetName()); });
+  }
+  return results;
+}
 
 double get_manual_subrange_chisquare(RooRealVar& obs, RooAbsPdf* pdf, RooDataSet& data,
 				     const char* range = nullptr, const char* norm_range = nullptr,
@@ -332,7 +367,7 @@ void save_plot_and_band( RooPlot * xframe,  RooRealVar var, std::vector<TString>
     for (int i =0; i<functions.size(); i++){
       auto hpull = xframe->pullHist("data",functions[i]);
       hpull->SetName("ratio_fnc");
-      hpull->SetLineColor(i+1);
+      hpull->SetLineColor(i+1 + (i >= 4)); //skip yellow due to the difficulty to see
       hpull->SetLineWidth(2);
       hpull->SetMarkerSize(0);
       xframe3->addPlotable(hpull,"PE1");

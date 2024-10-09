@@ -122,7 +122,9 @@ void PlotFunctions(std::vector<RooAbsPdf*> pdfs, RooPlot * xframe, RooRealVar di
 
 
 ///////// systematic functions parameters : returns maximum deviation of mean/width
-std::pair<double,double> SignalSystematicsMaxMeanWidth(TString syst_file, TString cuts, TString syst_name, float min_fit_range, float max_fit_range, int nbin_data,TString outname, TString ver ="v15"){
+std::pair<double,double> SignalSystematicsMaxMeanWidth(TString syst_file, TString cuts, TString syst_name,
+						       float min_fit_range, float max_fit_range, int nbin_data,
+						       TString outname, TString ver ="v15"){
 
     TTree * syst_tree = get_tree("mytreefit",syst_file,cuts);
     RooRealVar dilep_mass_syst("mass_ll_"+syst_name,"m(e,#mu)", (min_fit_range-max_fit_range)/2., min_fit_range , max_fit_range, "GeV/c^{2}");
@@ -352,8 +354,8 @@ RooAddPdf * CreateGaussPolynomial( TString name, int order, RooRealVar& dilep_ma
    RooArgList param_list;
    std::vector<RooRealVar*> bkg_params;
    for (int i=0; i<order; i++){
-     if (i==0)
-       def=0.06,min=-3.0,max=3.0;
+     if (i==0) def=0.06,min=-3.0,max=3.0;
+     else      def=0.00,min=-0.1,max=0.1;
      if (parameters.size()>0) def= parameters[i];
      bkg_params.push_back(new RooRealVar(name+"_b"+TString(to_string(i)), name+"_b"+TString(to_string(i)), def,min,max));
      param_list.add(*bkg_params[i]);
@@ -402,8 +404,8 @@ RooAddPdf * CreateGaussExpo( TString name, int order, RooRealVar& dilep_mass, Ro
         float c_def = 1./order;
         if (parameters.size())
           c_def = parameters[i-1];
-        RooRealVar * bkg_sumplaw_c = new RooRealVar(name+"_c"+TString(to_string(i)), name+"_c"+TString(to_string(i)),c_def, 0, 1.);
-        coefs.push_back(bkg_sumplaw_c);
+        RooRealVar * bkg_sumexp_c = new RooRealVar(name+"_c"+TString(to_string(i)), name+"_c"+TString(to_string(i)),c_def, 0, 1.);
+        coefs.push_back(bkg_sumexp_c);
         coef_list.add(*coefs[i]);
      }
   }
@@ -539,7 +541,7 @@ std::vector<std::vector<float>> FitBkgFunctions(std::vector<RooAbsPdf*> pdfs, st
     }
     output.push_back(temp);
     cout<<">>>>> p-value "<<pvalue<<endl;
-    pdfs[i]->plotOn(plot_frame,RooFit::LineColor(i+1),RooFit::Range("full"),RooFit::Name(names[i]));
+    pdfs[i]->plotOn(plot_frame,RooFit::LineColor(i+1+(i>=4)),RooFit::Range("full"),RooFit::Name(names[i]));
     leg->AddEntry(plot_frame->findObject(names[i]), Form(legs[i]+" (p: %1.2lf, #chi^2: %2.4lf)",pvalue, chi2/(nbin_data-nbin_blind-n_param) ));
     cout<<names[i]<<endl;
     pt->AddText(Form(legs[i]+" %3.4lf",pvalue));
@@ -742,7 +744,7 @@ std::vector<std::vector<float>> FitHistBkgFunctions(std::vector<RooAbsPdf*> pdfs
     }
     output.push_back(temp);
     cout<<">>>>> p-value "<<pvalue<<endl;
-    pdfs[i]->plotOn(plot_frame,RooFit::LineColor(i+1),RooFit::Range("full"),RooFit::Name(names[i]));
+    pdfs[i]->plotOn(plot_frame,RooFit::LineColor(i+1+(i>=4)),RooFit::Range("full"),RooFit::Name(names[i]));
     leg->AddEntry(plot_frame->findObject(names[i]), Form(legs[i]+" (p: %1.2lf, #chi^2: %2.4lf)",pvalue, chi2/(ndof) ));
     cout<<names[i]<<endl;
     pt->AddText(Form(legs[i]+" %3.4lf",pvalue));
@@ -770,7 +772,8 @@ FtestStruct HistFtest(std::vector<RooAbsPdf*> pdfs, std::vector<RooRealVar*> amp
                       vector<TString> names, std::vector<TString> legs,
                       int nbin_data, TString extra_name, float ftest_step,
                       float min_pvalue=-1, int print_level=0,
-                      bool force_inclusion = false, bool force_standard_env = false,TString cfg="./"){
+                      bool force_inclusion = false, bool force_standard_env = false,
+		      TString cfg = ""){
 
   bool Print_details = 0;
   if (print_level) Print_details=true;
